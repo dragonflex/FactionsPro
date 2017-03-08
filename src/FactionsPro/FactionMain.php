@@ -1,5 +1,4 @@
 <?php
-
 namespace FactionsPro;
 
 /*
@@ -16,30 +15,33 @@ namespace FactionsPro;
  * 
  */
 
+use pocketmine\level\Level;
 use pocketmine\plugin\PluginBase;
 use pocketmine\command\CommandSender;
 use pocketmine\command\Command;
 use pocketmine\event\Listener;
-use pocketmine\event\block\BlockBreakEvent;
-use pocketmine\event\player\PlayerChatEvent;
 use pocketmine\Player;
-use pocketmine\event\entity\EntityDamageByEntityEvent;
 use pocketmine\utils\TextFormat;
-use pocketmine\event\player\PlayerJoinEvent;
 use pocketmine\utils\Config;
-use pocketmine\event\entity\EntityDamageEvent;
 use pocketmine\block\Snow;
 use pocketmine\math\Vector3;
-use pocketmine\level\Position;
 
 class FactionMain extends PluginBase implements Listener {
 
+    /** @var \SQLite3 $db */
     public $db;
+    /** @var Config $prefs */
     public $prefs;
     public $war_req = [];
     public $wars = [];
     public $war_players = [];
     public $antispam;
+    /** @var  FactionCommands $fCommand*/
+    private $fCommand;
+    /** @var bool[] $factionChatActive */
+    public $factionChatActive;
+    /** @var bool[] $allyChatActive */
+    public $allyChatActive;
 
     public function onEnable() {
 
@@ -105,21 +107,22 @@ class FactionMain extends PluginBase implements Listener {
     }
 
     public function areEnemies($faction1, $faction2) {
-        $result = $this->db->query("SELECT * FROM enemies WHERE faction1 = '$faction1' AND faction2 = '$faction2';");
+        $result = $this->db->query("SELECT * FROM enemies WHERE faction1 = {$faction1} AND faction2 = {$faction2};");
         $resultArr = $result->fetchArray(SQLITE3_ASSOC);
         if (empty($resultArr) == false) {
             return true;
         }
+        return false;
     }
 
     public function isInFaction($player) {
-        $result = $this->db->query("SELECT * FROM master WHERE player='$player';");
+        $result = $this->db->query("SELECT * FROM master WHERE player={$player};");
         $array = $result->fetchArray(SQLITE3_ASSOC);
         return empty($array) == false;
     }
 
     public function getFaction($player) {
-        $faction = $this->db->query("SELECT * FROM master WHERE player='$player';");
+        $faction = $this->db->query("SELECT * FROM master WHERE player={$player};");
         $factionArray = $faction->fetchArray(SQLITE3_ASSOC);
         return $factionArray["faction"];
     }
@@ -142,17 +145,18 @@ class FactionMain extends PluginBase implements Listener {
     }
 
     public function areAllies($faction1, $faction2) {
-        $result = $this->db->query("SELECT * FROM allies WHERE faction1 = '$faction1' AND faction2 = '$faction2';");
+        $result = $this->db->query("SELECT * FROM allies WHERE faction1 = {$faction1} AND faction2 = {$faction2};");
         $resultArr = $result->fetchArray(SQLITE3_ASSOC);
         if (empty($resultArr) == false) {
             return true;
         }
+        return false;
     }
 
     public function updateAllies($faction) {
         $stmt = $this->db->prepare("INSERT OR REPLACE INTO alliescountlimit(faction, count) VALUES (:faction, :count);");
         $stmt->bindValue(":faction", $faction);
-        $result = $this->db->query("SELECT * FROM allies WHERE faction1='$faction';");
+        $result = $this->db->query("SELECT * FROM allies WHERE faction1={$faction};");
         $i = 0;
         while ($resultArr = $result->fetchArray(SQLITE3_ASSOC)) {
             $i = $i + 1;
@@ -163,7 +167,7 @@ class FactionMain extends PluginBase implements Listener {
 
     public function getAlliesCount($faction) {
 
-        $result = $this->db->query("SELECT * FROM alliescountlimit WHERE faction = '$faction';");
+        $result = $this->db->query("SELECT * FROM alliescountlimit WHERE faction = {$faction};");
         $resultArr = $result->fetchArray(SQLITE3_ASSOC);
         return (int) $resultArr["count"];
     }
@@ -173,12 +177,12 @@ class FactionMain extends PluginBase implements Listener {
     }
 
     public function deleteAllies($faction1, $faction2) {
-        $stmt = $this->db->prepare("DELETE FROM allies WHERE faction1 = '$faction1' AND faction2 = '$faction2';");
+        $stmt = $this->db->prepare("DELETE FROM allies WHERE faction1 = {$faction1} AND faction2 = {$faction2};");
         $stmt->execute();
     }
 
     public function getFactionPower($faction) {
-        $result = $this->db->query("SELECT * FROM strength WHERE faction = '$faction';");
+        $result = $this->db->query("SELECT * FROM strength WHERE faction = {$faction};");
         $resultArr = $result->fetchArray(SQLITE3_ASSOC);
         return (int) $resultArr["power"];
     }
@@ -204,24 +208,24 @@ class FactionMain extends PluginBase implements Listener {
     }
 
     public function isLeader($player) {
-        $faction = $this->db->query("SELECT * FROM master WHERE player='$player';");
+        $faction = $this->db->query("SELECT * FROM master WHERE player={$player};");
         $factionArray = $faction->fetchArray(SQLITE3_ASSOC);
         return $factionArray["rank"] == "Leader";
     }
 
     public function isOfficer($player) {
-        $faction = $this->db->query("SELECT * FROM master WHERE player='$player';");
+        $faction = $this->db->query("SELECT * FROM master WHERE player={$player};");
         $factionArray = $faction->fetchArray(SQLITE3_ASSOC);
         return $factionArray["rank"] == "Officer";
     }
 
     public function isMember($player) {
-        $faction = $this->db->query("SELECT * FROM master WHERE player='$player';");
+        $faction = $this->db->query("SELECT * FROM master WHERE player={$player};");
         $factionArray = $faction->fetchArray(SQLITE3_ASSOC);
         return $factionArray["rank"] == "Member";
     }
 
-    public function getPlayersInFactionByRank($s, $faction, $rank) {
+    public function getPlayersInFactionByRank(Player $s, $faction, $rank) {
 
         if ($rank != "Leader") {
             $rankname = $rank . 's';
@@ -229,7 +233,7 @@ class FactionMain extends PluginBase implements Listener {
             $rankname = $rank;
         }
         $team = "";
-        $result = $this->db->query("SELECT * FROM master WHERE faction='$faction' AND rank='$rank';");
+        $result = $this->db->query("SELECT * FROM master WHERE faction={$faction} AND rank={$rank};");
         $row = array();
         $i = 0;
 
@@ -247,10 +251,9 @@ class FactionMain extends PluginBase implements Listener {
         $s->sendMessage($team);
     }
 
-    public function getAllAllies($s, $faction) {
-
+    public function getAllAllies(Player $s, $faction) {
         $team = "";
-        $result = $this->db->query("SELECT * FROM allies WHERE faction1='$faction';");
+        $result = $this->db->query("SELECT * FROM allies WHERE faction1={$faction};");
         $row = array();
         $i = 0;
         while ($resultArr = $result->fetchArray(SQLITE3_ASSOC)) {
@@ -263,50 +266,51 @@ class FactionMain extends PluginBase implements Listener {
         $s->sendMessage($team);
     }
 
-    public function sendListOfTop10FactionsTo($s) {
-        $tf = "";
+    public function sendListOfTop10FactionsTo(Player $s) {
         $result = $this->db->query("SELECT faction FROM strength ORDER BY power DESC LIMIT 10;");
-        $row = array();
         $i = 0;
-        $s->sendMessage($this->formatMessage("~ The first 10 most strengthful factions ~", true));
-        while ($resultArr = $result->fetchArray(SQLITE3_ASSOC)) {
+        $s->sendMessage($this->formatMessage("~ The top 10 most powerful factions ~", true));
+        while (($resultArr = $result->fetchArray(SQLITE3_ASSOC)) != false) {
             $j = $i + 1;
             $cf = $resultArr['faction'];
             $pf = $this->getFactionPower($cf);
             $df = $this->getNumberOfPlayers($cf);
-            $s->sendMessage(TextFormat::ITALIC . TextFormat::GOLD . "$j -> " . TextFormat::GREEN . "$cf" . TextFormat::GOLD . " with " . TextFormat::RED . "$pf STR" . TextFormat::GOLD . " and " . TextFormat::LIGHT_PURPLE . "$df PLAYERS" . TextFormat::RESET);
-            $i = $i + 1;
+            $s->sendMessage(TextFormat::ITALIC . TextFormat::GOLD . "{$j} -> " .
+                TextFormat::GREEN . "{$cf}" . TextFormat::GOLD . " with " .
+                TextFormat::RED . "{$pf} STR" . TextFormat::GOLD . " and " .
+                TextFormat::LIGHT_PURPLE . "{$df} PLAYERS" . TextFormat::RESET);
+            $i++;
         }
     }
 
     public function getPlayerFaction($player) {
-        $faction = $this->db->query("SELECT * FROM master WHERE player='$player';");
+        $faction = $this->db->query("SELECT * FROM master WHERE player={$player};");
         $factionArray = $faction->fetchArray(SQLITE3_ASSOC);
         return $factionArray["faction"];
     }
 
     public function getLeader($faction) {
-        $leader = $this->db->query("SELECT * FROM master WHERE faction='$faction' AND rank='Leader';");
+        $leader = $this->db->query("SELECT * FROM master WHERE faction={$faction} AND rank='Leader';");
         $leaderArray = $leader->fetchArray(SQLITE3_ASSOC);
         return $leaderArray['player'];
     }
 
     public function factionExists($faction) {
-        $result = $this->db->query("SELECT * FROM master WHERE faction='$faction';");
+        $result = $this->db->query("SELECT * FROM master WHERE faction={$faction};");
         $array = $result->fetchArray(SQLITE3_ASSOC);
         return empty($array) == false;
     }
 
     public function sameFaction($player1, $player2) {
-        $faction = $this->db->query("SELECT * FROM master WHERE player='$player1';");
+        $faction = $this->db->query("SELECT * FROM master WHERE player={$player1};");
         $player1Faction = $faction->fetchArray(SQLITE3_ASSOC);
-        $faction = $this->db->query("SELECT * FROM master WHERE player='$player2';");
+        $faction = $this->db->query("SELECT * FROM master WHERE player={$player2};");
         $player2Faction = $faction->fetchArray(SQLITE3_ASSOC);
         return $player1Faction["faction"] == $player2Faction["faction"];
     }
 
     public function getNumberOfPlayers($faction) {
-        $query = $this->db->query("SELECT COUNT(*) as count FROM master WHERE faction='$faction';");
+        $query = $this->db->query("SELECT COUNT(*) as count FROM master WHERE faction={$faction};");
         $number = $query->fetchArray();
         return $number['count'];
     }
@@ -333,7 +337,7 @@ class FactionMain extends PluginBase implements Listener {
         $result = $stmt->execute();
     }
 
-    public function drawPlot($sender, $faction, $x, $y, $z, $level, $size) {
+    public function drawPlot(Player $sender, $faction, int $x, int $y, int $z, Level $level, $size) {
         $arm = ($size - 1) / 2;
         $block = new Snow();
         if ($this->cornerIsInPlot($x + $arm, $z + $arm, $x - $arm, $z - $arm)) {
@@ -359,7 +363,7 @@ class FactionMain extends PluginBase implements Listener {
         return true;
     }
 
-    public function isInPlot($player) {
+    public function isInPlot(Player $player) {
         $x = $player->getFloorX();
         $z = $player->getFloorZ();
         $result = $this->db->query("SELECT * FROM plots WHERE $x <= x1 AND $x >= x2 AND $z <= z1 AND $z >= z2;");
@@ -373,7 +377,7 @@ class FactionMain extends PluginBase implements Listener {
         return $array["faction"];
     }
 
-    public function inOwnPlot($player) {
+    public function inOwnPlot(Player $player) {
         $playerName = $player->getName();
         $x = $player->getFloorX();
         $z = $player->getFloorZ();
@@ -399,13 +403,13 @@ class FactionMain extends PluginBase implements Listener {
     }
 
     public function motdWaiting($player) {
-        $stmt = $this->db->query("SELECT * FROM motdrcv WHERE player='$player';");
+        $stmt = $this->db->query("SELECT * FROM motdrcv WHERE player={$player};");
         $array = $stmt->fetchArray(SQLITE3_ASSOC);
         return !empty($array);
     }
 
     public function getMOTDTime($player) {
-        $stmt = $this->db->query("SELECT * FROM motdrcv WHERE player='$player';");
+        $stmt = $this->db->query("SELECT * FROM motdrcv WHERE player={$player};");
         $array = $stmt->fetchArray(SQLITE3_ASSOC);
         return $array['timestamp'];
     }
@@ -416,23 +420,22 @@ class FactionMain extends PluginBase implements Listener {
         $stmt->bindValue(":message", $msg);
         $result = $stmt->execute();
 
-        $this->db->query("DELETE FROM motdrcv WHERE player='$player';");
+        $this->db->query("DELETE FROM motdrcv WHERE player={$player};");
     }
 
     public function updateTag($player) {
         $p = $this->getServer()->getPlayer($player);
         $f = $this->getPlayerFaction($player);
-        $n = $this->getNumberOfPlayers($f);
+        #$n = $this->getNumberOfPlayers($f);
         if (!$this->isInFaction($player)) {
-            $p->setNameTag(TextFormat::ITALIC . TextFormat::YELLOW . "<$player>");
+            $p->setNameTag(TextFormat::ITALIC . TextFormat::YELLOW . "<{$player}>");
         } else {
-            $p->setNameTag(TextFormat::ITALIC . TextFormat::GOLD . "<$f> " .
-                    TextFormat::ITALIC . TextFormat::YELLOW . "<$player>");
+            $p->setNameTag(TextFormat::ITALIC . TextFormat::GOLD . "<{$f}> " .
+                    TextFormat::ITALIC . TextFormat::YELLOW . "<{$player}>");
         }
     }
 
     public function onDisable() {
         $this->db->close();
     }
-
 }
