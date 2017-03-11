@@ -10,10 +10,10 @@ class FactionWar extends PluginTask {
 	public $requester;
 	
 	public function __construct(FactionMain $pl, $requester) {
-        parent::__construct($pl);
-        $this->plugin = $pl;
+		parent::__construct($pl);
+		$this->plugin = $pl;
 		$this->requester = $requester;
-    }
+	}
 	
 	public function onRun($currentTick) {
 		unset($this->plugin->wars[$this->requester]);

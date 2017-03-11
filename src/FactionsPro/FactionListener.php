@@ -73,21 +73,21 @@ class FactionListener implements Listener {
 	
 	public function factionPVP(EntityDamageEvent $factionDamage) {
 		if($factionDamage instanceof EntityDamageByEntityEvent) {
-            $damaged = $factionDamage->getEntity();
-            $damager = $factionDamage->getDamager();
-		    if($damaged instanceof Player and $damager instanceof Player) {
-                if(!$this->plugin->isInFaction($damaged->getName()) or !$this->plugin->isInFaction($damager->getName())) {
-                    return;
-                }
-                if(($factionDamage->getEntity() instanceof Player) and ($factionDamage->getDamager() instanceof Player)) {
-                    $player1 = $damaged->getName();
-                    $player2 = $damager->getName();
-                    $f1 = $this->plugin->getPlayerFaction($player1);
-                    $f2 = $this->plugin->getPlayerFaction($player2);
-                    if($this->plugin->sameFaction($player1, $player2) == true or $this->plugin->areAllies($f1,$f2)) {
-                        $factionDamage->setCancelled(true);
-                    }
-                }
+			$damaged = $factionDamage->getEntity();
+			$damager = $factionDamage->getDamager();
+			if($damaged instanceof Player and $damager instanceof Player) {
+				if(!$this->plugin->isInFaction($damaged->getName()) or !$this->plugin->isInFaction($damager->getName())) {
+					return;
+				}
+				if(($factionDamage->getEntity() instanceof Player) and ($factionDamage->getDamager() instanceof Player)) {
+					$player1 = $damaged->getName();
+					$player2 = $damager->getName();
+					$f1 = $this->plugin->getPlayerFaction($player1);
+					$f2 = $this->plugin->getPlayerFaction($player2);
+					if($this->plugin->sameFaction($player1, $player2) == true or $this->plugin->areAllies($f1,$f2)) {
+						$factionDamage->setCancelled(true);
+					}
+				}
 			}
 		}
 	}
@@ -115,45 +115,45 @@ class FactionListener implements Listener {
 		}
 	}
 	public function onKill(PlayerDeathEvent $event) {
-        $ent = $event->getEntity();
-        $cause = $event->getEntity()->getLastDamageCause();
-        if($cause instanceof EntityDamageByEntityEvent) {
-            $killer = $cause->getDamager();
-            if($killer instanceof Player) {
-                $p = $killer->getPlayer()->getName();
-                if($this->plugin->isInFaction($p)) {
-                    $f = $this->plugin->getPlayerFaction($p);
-                    $e = $this->plugin->prefs->get("PowerGainedPerKillingAnEnemy");
-                    if($ent instanceof Player) {
-                        if($this->plugin->isInFaction($ent->getPlayer()->getName())) {
-                           $this->plugin->addFactionPower($f,$e);
-                        } else {
-                           $this->plugin->addFactionPower($f,$e/2);
-                        }
-                    }
-                }
-            }
-        }
-        if($ent instanceof Player) {
-            $e = $ent->getPlayer()->getName();
-            if($this->plugin->isInFaction($e)) {
-                $f = $this->plugin->getPlayerFaction($e);
-                $p = $this->plugin->prefs->get("PowerGainedPerKillingAnEnemy");
-                $cause = $ent->getLastDamageCause();
-                if($cause instanceof EntityDamageByEntityEvent) {
-                    $damager = $cause->getDamager();
-                    if($damager instanceof Player) {
-                        if($this->plugin->isInFaction($damager->getName())) {
-                            $this->plugin->subtractFactionPower($f,$p*2);
-                        } else {
-                            $this->plugin->subtractFactionPower($f,$p);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
+		$ent = $event->getEntity();
+		$cause = $event->getEntity()->getLastDamageCause();
+		if($cause instanceof EntityDamageByEntityEvent) {
+			$killer = $cause->getDamager();
+			if($killer instanceof Player) {
+				$p = $killer->getPlayer()->getName();
+				if($this->plugin->isInFaction($p)) {
+					$f = $this->plugin->getPlayerFaction($p);
+					$e = $this->plugin->prefs->get("PowerGainedPerKillingAnEnemy");
+					if($ent instanceof Player) {
+						if($this->plugin->isInFaction($ent->getPlayer()->getName())) {
+						   $this->plugin->addFactionPower($f,$e);
+						} else {
+						   $this->plugin->addFactionPower($f,$e/2);
+						}
+					}
+				}
+			}
+		}
+		if($ent instanceof Player) {
+			$e = $ent->getPlayer()->getName();
+			if($this->plugin->isInFaction($e)) {
+				$f = $this->plugin->getPlayerFaction($e);
+				$p = $this->plugin->prefs->get("PowerGainedPerKillingAnEnemy");
+				$cause = $ent->getLastDamageCause();
+				if($cause instanceof EntityDamageByEntityEvent) {
+					$damager = $cause->getDamager();
+					if($damager instanceof Player) {
+						if($this->plugin->isInFaction($damager->getName())) {
+							$this->plugin->subtractFactionPower($f,$p*2);
+						} else {
+							$this->plugin->subtractFactionPower($f,$p);
+						}
+					}
+				}
+			}
+		}
+	}
+
 	public function onPlayerJoin(PlayerJoinEvent $event) {
 		$this->plugin->updateTag($event->getPlayer()->getName());
 	}
