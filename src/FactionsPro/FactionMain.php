@@ -42,7 +42,7 @@ class FactionMain extends PluginBase implements Listener {
 	public function onEnable() {
 
 		@mkdir($this->getDataFolder());
-        $this->saveResource("BannedBNames.txt");
+        $this->saveResource("BannedNames.txt");
 
 		$this->getServer()->getPluginManager()->registerEvents(new FactionListener($this), $this);
 		$this->antispam = $this->getServer()->getPluginManager()->getPlugin("AntiSpamPro");
@@ -316,7 +316,7 @@ class FactionMain extends PluginBase implements Listener {
 		$isbanned = false;
 		if (isset($name) && $this->antispam && $this->antispam->getProfanityFilter()->hasProfanity($name)) $isbanned = true;
 
-		return (strpos(strtolower($bannedNames), strtolower($name)) > 0 || $isbanned);
+		return (strpos(strtolower($bannedNames), strtolower($name)) > 0 or $isbanned);
 	}
 
 	public function newPlot($faction, $x1, $z1, $x2, $z2) {
